@@ -2,6 +2,9 @@
  * Build a class on top of the scene canvas that animates
  * sphere objects by changing their transformation matrix
  */
+
+let vec3 = glMatrix.vec3;
+
 function Particles() {
     this.scene = {"children":[],
                 "cameras":[
@@ -46,6 +49,7 @@ function Particles() {
                              0, 0, 0, 1],
                 "pos":pos,
                 "radius":radius,
+                "gravity":-Math.random()*5,
                 "velocity":[Math.random()*0.1, Math.random()*0.1, Math.random()*0.1],
                 "shapes":[
                     {"type":"sphere",
@@ -66,11 +70,30 @@ function Particles() {
         this.lastTime = thisTime;
         let spheres = this.spheres;
         for (let i = 0; i < spheres.length; i++) {
+            for (let j = i+1; j < spheres.length; j++) {
+                let dCenter = vec3.create();
+                vec3.subtract(dCenter, spheres[i].pos, spheres[j].pos);
+                if (vec3.length(dCenter) < spheres[i].radius + spheres[j].radius) {
+                    spheres[i].velocity = [0, 0, 0];
+                    spheres[j].velocity = [0, 0, 0];
+                }
+            }
+        }
+        for (let i = 0; i < spheres.length; i++) {
             for (let k = 0; k < 3; k++) {
                 spheres[i].pos[k] += dt*spheres[i].velocity[k];
                 spheres[i].transform[12+k] = spheres[i].pos[k];
             }
+            spheres[i].velocity[1] -= 9.81*dt;
+            const r = spheres[i].radius;
+            if (spheres[i].pos[1] < this.floory + r) {
+                // Balls hit the floor
+                spheres[i].velocity[1] *= -1;
+                spheres[i].pos[1] = this.floory + r + 0.001;
+                vec3.scale(spheres[i].velocity, spheres[i].velocity, 0.8);
+            }
             // TODO: Add acceleration and collision effects
+            
         }
     }
 }
