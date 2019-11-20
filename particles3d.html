@@ -66,6 +66,7 @@
     // Load the sample scene as a default
     particles = new Particles();
     particles.randomlyInitSpheres(20);
+    particles.randomlyInitBoxes(20);
     particles.addBox([0, 0, 0], [1000, 0.1, 1000], [0, 0, 0], 0, 0.9);
     console.log(particles.spheres);
     glcanvas.setupScene(particles.scene, glcanvas.clientWidth, glcanvas.clientHeight);

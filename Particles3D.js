@@ -4,8 +4,37 @@
  */
 
 vec3 = glMatrix.vec3;
+vec4 = glMatrix.vec4;
 mat4 = glMatrix.mat4;
 quat = glMatrix.quat;
+
+/**
+ * Update the glMatrix transform field of a shape based on 
+ * bullet's internal transformation state
+ * 
+ * @param {object} shape An object containing the fields "ptransform" and "scale"
+ */
+function updateTransformation(shape) {
+    //Scale, rotate, and translate the shape appropriately (in that order)
+    let trans = shape.ptransform;
+    let x = trans.getOrigin().x();
+    let y = trans.getOrigin().y();
+    let z = trans.getOrigin().z();
+    let q = trans.getRotation();
+    // Translation matrix
+    let TR = mat4.create();
+    mat4.translate(TR, TR, [x, y, z]);
+    // Rotation matrix
+    let quatMat = mat4.create();
+    mat4.fromQuat(quatMat, [q.x(), q.y(), q.z(), q.w()]);
+    mat4.multiply(TR, TR, quatMat);
+    // Scale matrix
+    let SMat = mat4.create();
+    mat4.identity(SMat);
+    mat4.scale(SMat, SMat, shape.scale);
+    mat4.multiply(TR, TR, SMat);
+    shape.transform = TR;
+}
 
 function Particles() {
     // Step 1: Initialize scene for rendering
@@ -25,6 +54,10 @@ function Particles() {
                 "materials":{
                     "redambient":{
                         "ka":[0.7, 0.0, 0.0],
+                        "kd":[1, 1, 1]
+                    },
+                    "blueambient":{
+                        "ka":[0.0, 0.0, 0.7],
                         "kd":[1, 1, 1]
                     }
                 }          
@@ -57,17 +90,17 @@ function Particles() {
      *                     that the box is static and has infinite inertia
      * @param {float} restitution Coefficient of restitution (between 0 and 1)
      * @param {string} material Material to use
+     * @param {quat4} rotation The initial rotation
      */
-    this.addBox = function(pos, scale, velocity, mass, restitution, material) {
+    this.addBox = function(pos, scale, velocity, mass, restitution, material, rotation) {
         if (material === undefined) {
             material = "default";
         }
+        if (rotation === undefined) {
+            rotation = [0, 0, 0, 1];
+        }
         // Step 1: Setup scene graph entry for rendering
         let box = {
-            "transform":[scale[0], 0, 0, pos[0],
-                         0, scale[1], 0, pos[1], 
-                         0, 0, scale[2], pos[2],
-                         0, 0, 0, 1],
             "scale":scale,
             "pos":pos,
             "velocity":velocity,
@@ -83,7 +116,9 @@ function Particles() {
         const ptransform = new Ammo.btTransform();
         ptransform.setIdentity();
         ptransform.setOrigin(new Ammo.btVector3(pos[0], pos[1], pos[2]));	
+        ptransform.setRotation(rotation[0], rotation[1], rotation[2], rotation[3]);
         box.ptransform = ptransform; 
+        updateTransformation(box);
         const isDynamic = (mass != 0);
         let localInertia = null;
         if (isDynamic) {
@@ -120,10 +155,6 @@ function Particles() {
 
         // Step 1: Setup scene graph entry for rendering
         let sphere = {
-            "transform":[radius, 0, 0, pos[0],
-                            0, radius, 0, pos[1], 
-                            0, 0, radius, pos[2],
-                            0, 0, 0, 1],
             "scale":[radius, radius, radius],
             "pos":pos,
             "radius":radius,
@@ -145,6 +176,7 @@ function Particles() {
         ptransform.setIdentity();
         ptransform.setOrigin(new Ammo.btVector3(pos[0], pos[1], pos[2]));
         sphere.ptransform = ptransform;
+        updateTransformation(sphere);
         const motionState = new Ammo.btDefaultMotionState(ptransform);
         const rbInfo = new Ammo.btRigidBodyConstructionInfo(mass, motionState, colShape, localInertia);
         // The final rigid body object
@@ -154,6 +186,10 @@ function Particles() {
         this.dynamicsWorld.addRigidBody(sphere.body);
     }
 
+    /**
+     * Add spheres with a random initial position, radius, initial velocity, mass,
+     * and coefficient of restitution
+     */
     this.randomlyInitSpheres = function(N) {
         for (let i = 0; i < N; i++) {
             let pos = [Math.random()*10-5, Math.random()*10, Math.random()*10-5];
@@ -162,6 +198,23 @@ function Particles() {
             const mass = Math.random();
             const restitution = Math.random(); // How bouncy the sphere is (between 0 and 1)
             this.addSphere(pos, radius, velocity, mass, restitution, "redambient");
+        }
+    }
+
+    /**
+     * Add boxes with a random initial position, dimensions, initial velocity, mass,
+     * coefficient of restitution, and orientation
+     */
+    this.randomlyInitBoxes = function(N) {
+        for (let i = 0; i < N; i++) {
+            let pos = [Math.random()*10-5, Math.random()*10, Math.random()*10-5];
+            let scale = [0.5*Math.random(), 0.5*Math.random(), 0.5*Math.random()];
+            let velocity = [Math.random()*0.1, Math.random()*0.1, Math.random()*0.1];
+            const mass = Math.random();
+            const restitution = Math.random();
+            let rotation = vec4.create()
+            vec4.random(rotation, 1);
+            this.addBox(pos, scale, velocity, mass, restitution, "blueambient", rotation);
         }
     }
 
@@ -182,26 +235,9 @@ function Particles() {
         this.lastTime = thisTime;
         this.dynamicsWorld.stepSimulation(dt, 10);
         for (shape of this.scene.children) {
-            //Scale, rotate, and translate the shape appropriately (in that order)
             let trans = shape.ptransform;
             shape.body.getMotionState().getWorldTransform(trans);
-            let x = trans.getOrigin().x();
-            let y = trans.getOrigin().y();
-            let z = trans.getOrigin().z();
-            let q = trans.getRotation();
-            // Translation matrix
-            let TR = mat4.create();
-            mat4.translate(TR, TR, [x, y, z]);
-            // Rotation matrix
-            let quatMat = mat4.create();
-            mat4.fromQuat(quatMat, [q.x(), q.y(), q.z(), q.w()]);
-            mat4.multiply(TR, TR, quatMat);
-            // Scale matrix
-            let SMat = mat4.create();
-            mat4.identity(SMat);
-            mat4.scale(SMat, SMat, shape.scale);
-            mat4.multiply(TR, TR, SMat);
-            shape.transform = TR;
+            updateTransformation(shape);
         }
     }
 }
