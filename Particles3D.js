@@ -46,6 +46,113 @@ function Particles() {
     dynamicsWorld.setGravity(new Ammo.btVector3(0, -10, 0));
     this.dynamicsWorld = dynamicsWorld;
 
+    /**
+     * Add a box to the scene by both creating an entry in the scene graph
+     * and initializing information for the physics engine
+     * 
+     * @param {vec3} pos Initial position of the center of the box 
+     * @param {vec3} scale Dimensions of the box along each axis
+     * @param {vec3} velocity Initial velocity of the box
+     * @param {float} mass Mass of the box.  If it is set to 0, it is assumed
+     *                     that the box is static and has infinite inertia
+     * @param {float} restitution Coefficient of restitution (between 0 and 1)
+     * @param {string} material Material to use
+     */
+    this.addBox = function(pos, scale, velocity, mass, restitution, material) {
+        if (material === undefined) {
+            material = "default";
+        }
+        // Step 1: Setup scene graph entry for rendering
+        let box = {
+            "transform":[scale[0], 0, 0, pos[0],
+                         0, scale[1], 0, pos[1], 
+                         0, 0, scale[2], pos[2],
+                         0, 0, 0, 1],
+            "scale":scale,
+            "pos":pos,
+            "velocity":velocity,
+            "mass":mass,
+            "shapes":[
+                {"type":"box",
+                "material":material}
+            ]
+        }
+        this.scene.children.push(box);
+
+        const boxShape = new Ammo.btBoxShape(new Ammo.btVector3(scale[0]/2, scale[1]/2, scale[2]/2));
+        const ptransform = new Ammo.btTransform();
+        ptransform.setIdentity();
+        ptransform.setOrigin(new Ammo.btVector3(pos[0], pos[1], pos[2]));	
+        box.ptransform = ptransform; 
+        const isDynamic = (mass != 0);
+        let localInertia = null;
+        if (isDynamic) {
+            localInertia = new Ammo.btVector3(velocity[0], velocity[1], velocity[2]);
+            boxShape.calculateLocalInertia(mass,localInertia);
+        }
+        else {
+            localInertia = new Ammo.btVector3(0, 0, 0);
+        }
+        let motionState = new Ammo.btDefaultMotionState(ptransform);
+        let rbInfo = new Ammo.btRigidBodyConstructionInfo(mass, motionState, boxShape, localInertia);
+        // The final rigid body object
+        box.body = new Ammo.btRigidBody(rbInfo);
+        box.body.setRestitution(restitution);
+        // Finally, add the rigid body to the simulator
+        this.dynamicsWorld.addRigidBody(box.body);
+    }
+    
+    /**
+     * Add a sphere to the scene by both creating an entry in the scene graph
+     * and initializing information for the physics engine
+     * 
+     * @param {vec3} pos Initial position of the center of the sphere 
+     * @param {float} radius Radius of the sphere
+     * @param {vec3} velocity Initial velocity of the sphere
+     * @param {float} mass Mass of the sphere
+     * @param {float} restitution Coefficient of restitution (between 0 and 1)
+     * @param {string} material Material to use
+     */
+    this.addSphere = function(pos, radius, velocity, mass, restitution, material) {
+        if (material === undefined) {
+            material = "default";
+        }
+
+        // Step 1: Setup scene graph entry for rendering
+        let sphere = {
+            "transform":[radius, 0, 0, pos[0],
+                            0, radius, 0, pos[1], 
+                            0, 0, radius, pos[2],
+                            0, 0, 0, 1],
+            "scale":[radius, radius, radius],
+            "pos":pos,
+            "radius":radius,
+            "velocity":velocity,
+            "mass":mass,
+            "shapes":[
+                {"type":"sphere",
+                "material":material}
+            ]
+        }
+        this.scene.children.push(sphere);
+        
+        // Step 2: Setup ammo.js physics engine entry
+        const colShape = new Ammo.btSphereShape(radius);
+        const localInertia = new Ammo.btVector3(velocity[0], velocity[1], velocity[2]);
+        colShape.calculateLocalInertia(mass, localInertia);
+        // Need to redefine the transformation for the physics engine
+        const ptransform = new Ammo.btTransform();
+        ptransform.setIdentity();
+        ptransform.setOrigin(new Ammo.btVector3(pos[0], pos[1], pos[2]));
+        sphere.ptransform = ptransform;
+        const motionState = new Ammo.btDefaultMotionState(ptransform);
+        const rbInfo = new Ammo.btRigidBodyConstructionInfo(mass, motionState, colShape, localInertia);
+        // The final rigid body object
+        sphere.body = new Ammo.btRigidBody(rbInfo); 
+        sphere.body.setRestitution(restitution);
+        // Finally, add the rigid body to the simulator
+        this.dynamicsWorld.addRigidBody(sphere.body);
+    }
 
     this.randomlyInitSpheres = function(N) {
         for (let i = 0; i < N; i++) {
@@ -54,40 +161,7 @@ function Particles() {
             let velocity = [Math.random()*0.1, Math.random()*0.1, Math.random()*0.1];
             const mass = Math.random();
             const restitution = Math.random(); // How bouncy the sphere is (between 0 and 1)
-
-            // Step 1: Setup scene graph entry for rendering
-            let sphere = {
-                "transform":[radius, 0, 0, pos[0],
-                             0, radius, 0, pos[1], 
-                             0, 0, radius, pos[2],
-                             0, 0, 0, 1],
-                "scale":[radius, radius, radius],
-                "pos":pos,
-                "radius":radius,
-                "velocity":velocity,
-                "shapes":[
-                    {"type":"sphere",
-                    "material":"redambient"}
-                ]
-            }
-            this.scene.children.push(sphere);
-            
-            // Step 2: Setup ammo.js physics engine entry
-            const colShape = new Ammo.btSphereShape(radius);
-            const localInertia = new Ammo.btVector3(velocity[0], velocity[1], velocity[2]);
-            colShape.calculateLocalInertia(mass, localInertia);
-            // Need to redefine the transformation for the physics engine
-            const ptransform = new Ammo.btTransform();
-            ptransform.setIdentity();
-            ptransform.setOrigin(new Ammo.btVector3(pos[0], pos[1], pos[2]));
-            sphere.ptransform = ptransform;
-            const motionState = new Ammo.btDefaultMotionState(ptransform);
-            const rbInfo = new Ammo.btRigidBodyConstructionInfo(mass, motionState, colShape, localInertia);
-            // The final rigid body object
-            sphere.body = new Ammo.btRigidBody(rbInfo); 
-            sphere.body.setRestitution(restitution);
-            // Finally, add the rigid body to the simulator
-            this.dynamicsWorld.addRigidBody(sphere.body);
+            this.addSphere(pos, radius, velocity, mass, restitution, "redambient");
         }
     }
 
