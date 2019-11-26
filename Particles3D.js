@@ -20,6 +20,7 @@ function updateTransformation(shape) {
     let x = trans.getOrigin().x();
     let y = trans.getOrigin().y();
     let z = trans.getOrigin().z();
+    shape.pos = [x, y, z];
     let q = trans.getRotation();
     // Translation matrix
     let TR = mat4.create();
@@ -45,12 +46,7 @@ function Particles() {
                     "rot": [0.00, 0.00, 0.00, 1.00],
                     "fovy": 1.0
                 }],
-                "lights":[
-                    {
-                        "pos":[0, 20, 0],
-                        "color":[1, 1, 1]
-                    }
-                ],
+                "lights":[],
                 "materials":{
                     "redambient":{
                         "ka":[0.7, 0.0, 0.0],
@@ -58,6 +54,10 @@ function Particles() {
                     },
                     "blueambient":{
                         "ka":[0.0, 0.0, 0.7],
+                        "kd":[1, 1, 1]
+                    },
+                    "white":{
+                        "ka":[1, 1, 1],
                         "kd":[1, 1, 1]
                     }
                 }          
@@ -147,10 +147,14 @@ function Particles() {
      * @param {float} mass Mass of the sphere
      * @param {float} restitution Coefficient of restitution (between 0 and 1)
      * @param {string} material Material to use
+     * @param {boolean} isLight Should it also be emitting light?
      */
-    this.addSphere = function(pos, radius, velocity, mass, restitution, material) {
+    this.addSphere = function(pos, radius, velocity, mass, restitution, material, isLight) {
         if (material === undefined) {
             material = "default";
+        }
+        if (isLight === undefined) {
+            isLight = false;
         }
 
         // Step 1: Setup scene graph entry for rendering
@@ -166,6 +170,12 @@ function Particles() {
             ]
         }
         this.scene.children.push(sphere);
+        if (isLight) {
+            // If it is a light, need to also add it to the list of lights
+            sphere.color = this.scene.materials[material].kd;
+            sphere.atten = [1, 0, 0];
+            this.scene.lights.push(sphere);
+        }
         
         // Step 2: Setup ammo.js physics engine entry
         const colShape = new Ammo.btSphereShape(radius);
@@ -197,8 +207,14 @@ function Particles() {
             let velocity = [Math.random()*0.1, Math.random()*0.1, Math.random()*0.1];
             const mass = Math.random();
             const restitution = Math.random(); // How bouncy the sphere is (between 0 and 1)
-            this.addSphere(pos, radius, velocity, mass, restitution, "redambient");
+            if (i < 4) {
+                this.addSphere(pos, radius, velocity, mass, restitution, "white", true);
+            }
+            else {
+                this.addSphere(pos, radius, velocity, mass, restitution, "redambient");
+            }
         }
+        console.log(this.scene.lights);
     }
 
     /**
