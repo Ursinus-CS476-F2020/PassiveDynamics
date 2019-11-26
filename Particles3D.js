@@ -56,6 +56,9 @@ function Particles() {
                         "ka":[0.0, 0.0, 0.7],
                         "kd":[1, 1, 1]
                     },
+                    "green":{
+                        "kd":[0.0, 0.7, 0.0]
+                    },
                     "white":{
                         "ka":[1, 1, 1],
                         "kd":[1, 1, 1]
@@ -214,7 +217,84 @@ function Particles() {
                 this.addSphere(pos, radius, velocity, mass, restitution, "redambient");
             }
         }
-        console.log(this.scene.lights);
+    }
+
+    /**
+     * Add a mesh to the scene with a random mass, velocity, position
+     * 
+     * @param {string} filename Path to mesh
+     * @param {vec3} pos Initial position of the center of the sphere 
+     * @param {vec3} velocity Initial velocity of the sphere
+     * @param {float} mass Mass of the sphere
+     * @param {float} restitution Coefficient of restitution (between 0 and 1)
+     * @param {string} material Material to use
+     * @param {boolean} isLight Should it also be emitting light?
+     */
+    this.addMesh = function(filename, pos, velocity, mass, restitution, material, isLight) {
+        // Step 1: Setup the convex hull collision shape
+        // for the mesh
+        mesh = new BasicMesh();
+        let lines = BlockLoader.loadTxt(filename);
+        let res = loadFileFromLines(lines.split("\n"));
+        let vertices = res.vertices;
+        let faces = res.faces;
+        let btMesh = new Ammo.btTriangleMesh();
+        // Copy vertex information over to bullet
+        for (let i = 0; i < vertices.length; i++) {
+            let v = vertices[i];
+            vertices[i] = new Ammo.btVector3(v[0], v[1], v[2]);
+        }
+        // Copy over face information (assuming triangle mesh)
+        for (let i = 0; i < faces.length; i++) {
+            let f = faces[i];
+            btMesh.addTriangle(vertices[f[0]], vertices[f[1]], vertices[f[2]]);
+        }
+        let colShape = new Ammo.btConvexTriangleMeshShape(btMesh);
+        /*let hull = new Ammo.btShapeHull(colShape);
+        let margin = colShape.getMargin();
+        hull.buildHull(margin);
+        colShape.setUserPointer(hull);*/
+
+        // Step 2: Initialize the scene graph entry
+        let shape = {
+            "scale":[1, 1, 1],
+            "pos":pos,
+            "velocity":velocity,
+            "mass":mass,
+            "shapes":[
+                {"type":"mesh",
+                "filename":filename,
+                "material":material}
+            ]
+        };
+        this.scene.children.push(shape);
+        if (isLight === undefined) {
+            isLight = false;
+        }
+        if (isLight) {
+            // If it is a light, need to also add it to the list of lights
+            shape.color = this.scene.materials[material].kd;
+            shape.atten = [1, 0, 0];
+            this.scene.lights.push(shape);
+        }
+        
+        // Step 3: Setup ammo.js physics engine entry
+        const localInertia = new Ammo.btVector3(velocity[0], velocity[1], velocity[2]);
+        colShape.calculateLocalInertia(mass, localInertia);
+        // Need to redefine the transformation for the physics engine
+        const ptransform = new Ammo.btTransform();
+        ptransform.setIdentity();
+        ptransform.setOrigin(new Ammo.btVector3(pos[0], pos[1], pos[2]));
+        shape.ptransform = ptransform;
+        updateTransformation(shape);
+        const motionState = new Ammo.btDefaultMotionState(ptransform);
+        const rbInfo = new Ammo.btRigidBodyConstructionInfo(mass, motionState, colShape, localInertia);
+        // The final rigid body object
+        shape.body = new Ammo.btRigidBody(rbInfo); 
+        shape.body.setRestitution(restitution);
+        // Finally, add the rigid body to the simulator
+        this.dynamicsWorld.addRigidBody(shape.body);
+
     }
 
     /**
