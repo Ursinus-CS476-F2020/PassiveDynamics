@@ -67,12 +67,12 @@
     particles = new Particles();
     particles.randomlyInitSpheres(20);
     particles.randomlyInitBoxes(20);
-    particles.addBox([0, 0, 0], [1000, 0.1, 1000], [0, 0, 0], 0, 0.9);
-    particles.addMesh("ggslac/meshes/cow.off", [0, 6, 0], [0, 20, 0], 10, 1, "green");
-    console.log(particles.spheres);
+    particles.addBox([0, 0, 0], [1000, 0.1, 1000], [0, 0, 0], 0, 0.9, "ground");
+    particles.cow = particles.addMesh("ggslac/meshes/cow.off", [0, 6, 0], [0, 20, 0], 10, 1, "green");
     glcanvas.setupScene(particles.scene, glcanvas.clientWidth, glcanvas.clientHeight);
     glcanvas.drawEdges = false;
     glcanvas.updateMeshDrawings();
+    particles.setglcanvas(glcanvas);
 
     function repaint() {
         particles.animate();

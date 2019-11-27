@@ -62,9 +62,17 @@ function Particles() {
                     "white":{
                         "ka":[1, 1, 1],
                         "kd":[1, 1, 1]
+                    },
+                    "ground":{
+                        "ka":[0.2, 0.2, 0.2]
                     }
                 }          
     };
+
+    this.glcanvas = null;
+    this.setglcanvas = function(glcanvas) {
+        this.glcanvas = glcanvas;
+    }
 
     // Step 2: Initialize physics engine
     // Collision configuration contains default setup for memory, collisions setup
@@ -94,13 +102,20 @@ function Particles() {
      * @param {float} restitution Coefficient of restitution (between 0 and 1)
      * @param {string} material Material to use
      * @param {quat4} rotation The initial rotation
+     * @param {boolean} isHidden If true, only add the object to the physics engine, 
+     *                          not to the scene graph
+     * 
+     * @returns{object} The created box object
      */
-    this.addBox = function(pos, scale, velocity, mass, restitution, material, rotation) {
+    this.addBox = function(pos, scale, velocity, mass, restitution, material, rotation, isHidden) {
         if (material === undefined) {
             material = "default";
         }
         if (rotation === undefined) {
             rotation = [0, 0, 0, 1];
+        }
+        if (isHidden === undefined) {
+            isHidden = false;
         }
         // Step 1: Setup scene graph entry for rendering
         let box = {
@@ -110,7 +125,8 @@ function Particles() {
             "mass":mass,
             "shapes":[
                 {"type":"box",
-                "material":material}
+                "material":material,
+                "hidden":isHidden}
             ]
         }
         this.scene.children.push(box);
@@ -138,6 +154,7 @@ function Particles() {
         box.body.setRestitution(restitution);
         // Finally, add the rigid body to the simulator
         this.dynamicsWorld.addRigidBody(box.body);
+        return box;
     }
     
     /**
@@ -151,13 +168,20 @@ function Particles() {
      * @param {float} restitution Coefficient of restitution (between 0 and 1)
      * @param {string} material Material to use
      * @param {boolean} isLight Should it also be emitting light?
+     * @param {boolean} isHidden If true, only add the object to the physics engine, 
+     *                          not to the scene graph
+     * 
+     * @returns {object} The created sphere object
      */
-    this.addSphere = function(pos, radius, velocity, mass, restitution, material, isLight) {
+    this.addSphere = function(pos, radius, velocity, mass, restitution, material, isLight, isHidden) {
         if (material === undefined) {
             material = "default";
         }
         if (isLight === undefined) {
             isLight = false;
+        }
+        if (isHidden === undefined) {
+            isHidden = false;
         }
 
         // Step 1: Setup scene graph entry for rendering
@@ -169,7 +193,8 @@ function Particles() {
             "mass":mass,
             "shapes":[
                 {"type":"sphere",
-                "material":material}
+                "material":material,
+                "hidden":isHidden}
             ]
         }
         this.scene.children.push(sphere);
@@ -197,6 +222,7 @@ function Particles() {
         sphere.body.setRestitution(restitution);
         // Finally, add the rigid body to the simulator
         this.dynamicsWorld.addRigidBody(sphere.body);
+        return sphere;
     }
 
     /**
@@ -230,7 +256,13 @@ function Particles() {
      * @param {string} material Material to use
      * @param {boolean} isLight Should it also be emitting light?
      */
-    this.addMesh = function(filename, pos, velocity, mass, restitution, material, isLight) {
+    this.addMesh = function(filename, pos, velocity, mass, restitution, material, isLight, isHidden) {
+        if (isLight === undefined) {
+            isLight = false;
+        }
+        if (isHidden === undefined) {
+            isHidden = false;
+        }
         // Step 1: Setup the convex hull collision shape
         // for the mesh
         mesh = new BasicMesh();
@@ -264,13 +296,11 @@ function Particles() {
             "shapes":[
                 {"type":"mesh",
                 "filename":filename,
-                "material":material}
+                "material":material,
+                "hidden":isHidden}
             ]
         };
         this.scene.children.push(shape);
-        if (isLight === undefined) {
-            isLight = false;
-        }
         if (isLight) {
             // If it is a light, need to also add it to the list of lights
             shape.color = this.scene.materials[material].kd;
@@ -295,6 +325,7 @@ function Particles() {
         // Finally, add the rigid body to the simulator
         this.dynamicsWorld.addRigidBody(shape.body);
 
+        return shape;
     }
 
     /**
@@ -308,10 +339,19 @@ function Particles() {
             let velocity = [Math.random()*0.1, Math.random()*0.1, Math.random()*0.1];
             const mass = Math.random();
             const restitution = Math.random();
-            let rotation = vec4.create()
+            let rotation = vec4.create();
             vec4.random(rotation, 1);
             this.addBox(pos, scale, velocity, mass, restitution, "blueambient", rotation);
         }
+    }
+
+    this.addCameraSphere = function() {
+        let pos = [Math.random()*10-5, Math.random()*10, Math.random()*10-5];
+        let radius = 0.5*Math.random();
+        let velocity = [Math.random()*0.1, Math.random()*0.1, Math.random()*0.1];
+        const mass = Math.random();
+        const restitution = Math.random(); // How bouncy the sphere is (between 0 and 1)
+        this.camerasphere = this.addSphere(pos, radius, velocity, mass, restitution, "white");
     }
 
     this.time = 0.0;
@@ -334,6 +374,11 @@ function Particles() {
             let trans = shape.ptransform;
             shape.body.getMotionState().getWorldTransform(trans);
             updateTransformation(shape);
+        }
+        if (!(this.glcanvas === null)) {
+            // Make the camera in world coordinates 4 units in z in front of the cow
+            // and 2 units above the cow
+            vec3.add(this.glcanvas.camera.pos, this.cow.pos, vec3.fromValues(0, 2, 4));
         }
     }
 }
