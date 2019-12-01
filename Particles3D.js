@@ -8,6 +8,13 @@ vec4 = glMatrix.vec4;
 mat4 = glMatrix.mat4;
 quat = glMatrix.quat;
 
+const KEY_W = 87;
+const KEY_S = 83;
+const KEY_A = 65;
+const KEY_D = 68;
+const KEY_C = 67;
+const KEY_E = 69;
+
 /**
  * Update the glMatrix transform field of a shape based on 
  * bullet's internal transformation state
@@ -380,5 +387,55 @@ function Particles() {
             // and 2 units above the cow
             vec3.add(this.glcanvas.camera.pos, this.cow.pos, vec3.fromValues(0, 2, 4));
         }
+        if (!(this.keysDown === undefined)) {
+            let T = vec3.create();
+            let R = vec3.create();
+            vec3.copy(R, glcanvas.camera.right);
+            let U = vec3.create();
+            vec3.copy(U, glcanvas.camera.up);
+            vec3.cross(T, U, R);
+            if (this.keysDown[KEY_W]) {
+                // Apply a central impulse in the forward direction of the camera
+                this.cow.body.applyCentralImpulse(new Ammo.btVector3(T[0], T[1], T[2]));
+            }
+            if (this.keysDown[KEY_S]) {
+                // Apply a central impulse in the reverse direction of the camera
+                vec3.scale(T, T, -1);
+                this.cow.body.applyCentralImpulse(new Ammo.btVector3(T[0], T[1], T[2]));
+            }
+            if (this.keysDown[KEY_D]) {
+                // Apply a central impulse in the right direction of the camera
+                this.cow.body.applyCentralImpulse(new Ammo.btVector3(R[0], R[1], R[2]));
+            }
+            if (this.keysDown[KEY_A]) {
+                // Apply a central impulse in the left direction of the camera
+                vec3.scale(R, R, -1);
+                this.cow.body.applyCentralImpulse(new Ammo.btVector3(R[0], R[1], R[2]));
+            }
+        }
+    }
+
+    this.keyDown = function(evt) {
+        for (key of [KEY_W, KEY_S, KEY_D, KEY_A]) {
+            if (evt.keyCode == key) {
+                this.keysDown[key] = true;
+            }
+        }
+    }
+
+    this.keyUp = function(evt) {
+        for (key of [KEY_W, KEY_S, KEY_D, KEY_A]) {
+            if (evt.keyCode == key) {
+                this.keysDown[key] = false;
+            }
+        }
+    }  
+
+
+    this.setupListeners = function() {
+        this.glcanvas.active = false; // Disable default listeners
+        this.keysDown = {KEY_W:false, KEY_S:false, KEY_A:false, KEY_D:false};
+        document.addEventListener('keydown', this.keyDown.bind(this), true);
+        document.addEventListener('keyup', this.keyUp.bind(this), true);
     }
 }
