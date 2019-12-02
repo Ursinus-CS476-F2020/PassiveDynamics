@@ -365,6 +365,19 @@ function Particles() {
     this.lastTime = (new Date()).getTime();
 
     /**
+     * A helper function to extract vectors from the camera
+     */
+    this.getCameraVectors = function() {
+        let T = vec3.create();
+        let R = vec3.create();
+        vec3.copy(R, this.glcanvas.camera.right);
+        let U = vec3.create();
+        vec3.copy(U, this.glcanvas.camera.up);
+        vec3.cross(T, U, R);
+        return {'T':T, 'U':U, 'R':R};
+    }
+
+    /**
      * Step forward in time in the physics simulation.
      * Then, for each rigid body object in the scene, read out
      * the current position and orientation from the physics
@@ -388,12 +401,11 @@ function Particles() {
             vec3.add(this.glcanvas.camera.pos, this.cow.pos, vec3.fromValues(0, 2, 4));
         }
         if (!(this.keysDown === undefined)) {
-            let T = vec3.create();
-            let R = vec3.create();
-            vec3.copy(R, glcanvas.camera.right);
-            let U = vec3.create();
-            vec3.copy(U, glcanvas.camera.up);
-            vec3.cross(T, U, R);
+            let res = this.getCameraVectors();
+            let T = res['T']; // Towards vector
+            let R = res['R']; // Right vector
+            vec3.scale(T, T, 2);
+            vec3.scale(R, R, 2);
             if (this.keysDown[KEY_W]) {
                 // Apply a central impulse in the forward direction of the camera
                 this.cow.body.applyCentralImpulse(new Ammo.btVector3(T[0], T[1], T[2]));
@@ -431,11 +443,32 @@ function Particles() {
         }
     }  
 
+    this.makeClick = function(evt) {
+        let clickType = "LEFT";
+        evt.preventDefault();
+        if (evt.which) {
+            if (evt.which == 3) clickType = "RIGHT";
+            if (evt.which == 2) clickType = "MIDDLE";
+        }
+        else if (evt.button) {
+            if (evt.button == 2) clickType = "RIGHT";
+            if (evt.button == 4) clickType = "MIDDLE";
+        }
+        if (clickType == "RIGHT") {
+            let pos = vec3.create();
+            let res = this.getCameraVectors();
+            vec3.scaleAndAdd(pos, pos, res['U'], 10);
+            console.log("Adding sphere");
+            console.log(pos);
+            this.addSphere(pos, 0.2, [0, 0, 0], 0.1, 0.5, "blueambient");
+        }
+    }
 
     this.setupListeners = function() {
         this.glcanvas.active = false; // Disable default listeners
         this.keysDown = {KEY_W:false, KEY_S:false, KEY_A:false, KEY_D:false};
         document.addEventListener('keydown', this.keyDown.bind(this), true);
         document.addEventListener('keyup', this.keyUp.bind(this), true);
+        this.glcanvas.addEventListener('mousedown', this.makeClick.bind(this));
     }
 }
