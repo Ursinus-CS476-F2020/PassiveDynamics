@@ -377,6 +377,58 @@ function Particles() {
         return {'T':T, 'U':U, 'R':R};
     }
 
+    this.keyDown = function(evt) {
+        for (key of [KEY_W, KEY_S, KEY_D, KEY_A]) {
+            if (evt.keyCode == key) {
+                this.keysDown[key] = true;
+            }
+        }
+    }
+
+    this.keyUp = function(evt) {
+        for (key of [KEY_W, KEY_S, KEY_D, KEY_A]) {
+            if (evt.keyCode == key) {
+                this.keysDown[key] = false;
+            }
+        }
+    }  
+
+    this.makeClick = function(evt) {
+        let clickType = "LEFT";
+        evt.preventDefault();
+        if (evt.which) {
+            if (evt.which == 3) clickType = "RIGHT";
+            if (evt.which == 2) clickType = "MIDDLE";
+        }
+        else if (evt.button) {
+            if (evt.button == 2) clickType = "RIGHT";
+            if (evt.button == 4) clickType = "MIDDLE";
+        }
+        if (clickType == "RIGHT") {
+            let pos = vec3.create();
+            let res = this.getCameraVectors();
+            let T = res['T']; // Towards vector
+            let U = res['U']; // Up vector
+            vec3.scaleAndAdd(pos, this.glcanvas.camera.pos, U, 0);
+            vec3.scaleAndAdd(pos, pos, T, 2);
+            let sphere = this.addSphere(pos, 0.2, [0, 0, 0], 1, 0.5, "blueambient");
+            // Velocity is 40 units / second in the camera's towards direction
+            vec3.scale(T, T, 40); 
+            sphere.body.setLinearVelocity(new Ammo.btVector3(T[0], T[1], T[2]));
+            this.glcanvas.parseNode(sphere);
+        }
+    }
+
+    this.setupListeners = function() {
+        this.glcanvas.active = false; // Disable default listeners
+        this.keysDown = {KEY_W:false, KEY_S:false, KEY_A:false, KEY_D:false};
+        document.addEventListener('keydown', this.keyDown.bind(this), true);
+        document.addEventListener('keyup', this.keyUp.bind(this), true);
+        this.glcanvas.addEventListener('mousedown', this.makeClick.bind(this));
+    }
+
+
+
     /**
      * Step forward in time in the physics simulation.
      * Then, for each rigid body object in the scene, read out
@@ -425,50 +477,5 @@ function Particles() {
                 this.cow.body.applyCentralImpulse(new Ammo.btVector3(R[0], R[1], R[2]));
             }
         }
-    }
-
-    this.keyDown = function(evt) {
-        for (key of [KEY_W, KEY_S, KEY_D, KEY_A]) {
-            if (evt.keyCode == key) {
-                this.keysDown[key] = true;
-            }
-        }
-    }
-
-    this.keyUp = function(evt) {
-        for (key of [KEY_W, KEY_S, KEY_D, KEY_A]) {
-            if (evt.keyCode == key) {
-                this.keysDown[key] = false;
-            }
-        }
-    }  
-
-    this.makeClick = function(evt) {
-        let clickType = "LEFT";
-        evt.preventDefault();
-        if (evt.which) {
-            if (evt.which == 3) clickType = "RIGHT";
-            if (evt.which == 2) clickType = "MIDDLE";
-        }
-        else if (evt.button) {
-            if (evt.button == 2) clickType = "RIGHT";
-            if (evt.button == 4) clickType = "MIDDLE";
-        }
-        if (clickType == "RIGHT") {
-            let pos = vec3.create();
-            let res = this.getCameraVectors();
-            vec3.scaleAndAdd(pos, pos, res['U'], 10);
-            console.log("Adding sphere");
-            console.log(pos);
-            this.addSphere(pos, 0.2, [0, 0, 0], 0.1, 0.5, "blueambient");
-        }
-    }
-
-    this.setupListeners = function() {
-        this.glcanvas.active = false; // Disable default listeners
-        this.keysDown = {KEY_W:false, KEY_S:false, KEY_A:false, KEY_D:false};
-        document.addEventListener('keydown', this.keyDown.bind(this), true);
-        document.addEventListener('keyup', this.keyUp.bind(this), true);
-        this.glcanvas.addEventListener('mousedown', this.makeClick.bind(this));
     }
 }
