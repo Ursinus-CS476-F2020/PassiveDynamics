@@ -257,6 +257,7 @@ function Particles() {
      * 
      * @param {string} filename Path to mesh
      * @param {vec3} pos Initial position of the center of the sphere 
+     * @param {vec3} scale How to rescale the mesh along each axis
      * @param {vec3} velocity Initial velocity of the sphere
      * @param {float} mass Mass of the sphere
      * @param {float} restitution Coefficient of restitution (between 0 and 1)
