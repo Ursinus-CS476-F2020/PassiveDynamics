@@ -142,7 +142,7 @@ function Particles() {
         const ptransform = new Ammo.btTransform();
         ptransform.setIdentity();
         ptransform.setOrigin(new Ammo.btVector3(pos[0], pos[1], pos[2]));	
-        ptransform.setRotation(rotation[0], rotation[1], rotation[2], rotation[3]);
+        ptransform.setRotation(new Ammo.btQuaternion(rotation[0], rotation[1], rotation[2], rotation[3]));
         box.ptransform = ptransform; 
         updateTransformation(box);
         const isDynamic = (mass != 0);
@@ -263,7 +263,7 @@ function Particles() {
      * @param {string} material Material to use
      * @param {boolean} isLight Should it also be emitting light?
      */
-    this.addMesh = function(filename, pos, velocity, mass, restitution, material, isLight, isHidden) {
+    this.addMesh = function(filename, pos, scale, velocity, mass, restitution, material, isLight, isHidden) {
         if (isLight === undefined) {
             isLight = false;
         }
@@ -281,7 +281,7 @@ function Particles() {
         // Copy vertex information over to bullet
         for (let i = 0; i < vertices.length; i++) {
             let v = vertices[i];
-            vertices[i] = new Ammo.btVector3(v[0], v[1], v[2]);
+            vertices[i] = new Ammo.btVector3(scale[0]*v[0], scale[1]*v[1], scale[2]*v[2]);
         }
         // Copy over face information (assuming triangle mesh)
         for (let i = 0; i < faces.length; i++) {
@@ -296,7 +296,7 @@ function Particles() {
 
         // Step 2: Initialize the scene graph entry
         let shape = {
-            "scale":[1, 1, 1],
+            "scale":scale,
             "pos":pos,
             "velocity":velocity,
             "mass":mass,
