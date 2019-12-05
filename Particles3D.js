@@ -161,6 +161,7 @@ function Particles() {
         box.body.setRestitution(restitution);
         // Finally, add the rigid body to the simulator
         this.dynamicsWorld.addRigidBody(box.body);
+        box.physicsActive = true;
         return box;
     }
     
@@ -177,10 +178,11 @@ function Particles() {
      * @param {boolean} isLight Should it also be emitting light?
      * @param {boolean} isHidden If true, only add the object to the physics engine, 
      *                          not to the scene graph
+     * @param {boolean} physicsActive True by default.  If false, ignore all physics and simply render
      * 
      * @returns {object} The created sphere object
      */
-    this.addSphere = function(pos, radius, velocity, mass, restitution, material, isLight, isHidden) {
+    this.addSphere = function(pos, radius, velocity, mass, restitution, material, isLight, isHidden, physicsActive) {
         if (material === undefined) {
             material = "default";
         }
@@ -190,6 +192,9 @@ function Particles() {
         if (isHidden === undefined) {
             isHidden = false;
         }
+        if (physicsActive === undefined) {
+            physicsActive = true;
+        }
 
         // Step 1: Setup scene graph entry for rendering
         let sphere = {
@@ -198,6 +203,10 @@ function Particles() {
             "radius":radius,
             "velocity":velocity,
             "mass":mass,
+            "transform":[1, 0, 0, pos[0], 
+                         0, 1, 0, pos[1],
+                         0, 0, 1, pos[2],
+                         0, 0, 0, 1],
             "shapes":[
                 {"type":"sphere",
                 "material":material,
@@ -213,22 +222,25 @@ function Particles() {
         }
         
         // Step 2: Setup ammo.js physics engine entry
-        const colShape = new Ammo.btSphereShape(radius);
-        const localInertia = new Ammo.btVector3(velocity[0], velocity[1], velocity[2]);
-        colShape.calculateLocalInertia(mass, localInertia);
-        // Need to redefine the transformation for the physics engine
-        const ptransform = new Ammo.btTransform();
-        ptransform.setIdentity();
-        ptransform.setOrigin(new Ammo.btVector3(pos[0], pos[1], pos[2]));
-        sphere.ptransform = ptransform;
-        updateTransformation(sphere);
-        const motionState = new Ammo.btDefaultMotionState(ptransform);
-        const rbInfo = new Ammo.btRigidBodyConstructionInfo(mass, motionState, colShape, localInertia);
-        // The final rigid body object
-        sphere.body = new Ammo.btRigidBody(rbInfo); 
-        sphere.body.setRestitution(restitution);
-        // Finally, add the rigid body to the simulator
-        this.dynamicsWorld.addRigidBody(sphere.body);
+        sphere.physicsActive = physicsActive;
+        if (physicsActive) {
+            const colShape = new Ammo.btSphereShape(radius);
+            const localInertia = new Ammo.btVector3(velocity[0], velocity[1], velocity[2]);
+            colShape.calculateLocalInertia(mass, localInertia);
+            // Need to redefine the transformation for the physics engine
+            const ptransform = new Ammo.btTransform();
+            ptransform.setIdentity();
+            ptransform.setOrigin(new Ammo.btVector3(pos[0], pos[1], pos[2]));
+            sphere.ptransform = ptransform;
+            updateTransformation(sphere);
+            const motionState = new Ammo.btDefaultMotionState(ptransform);
+            const rbInfo = new Ammo.btRigidBodyConstructionInfo(mass, motionState, colShape, localInertia);
+            // The final rigid body object
+            sphere.body = new Ammo.btRigidBody(rbInfo); 
+            sphere.body.setRestitution(restitution);
+            // Finally, add the rigid body to the simulator
+            this.dynamicsWorld.addRigidBody(sphere.body);
+        }
         return sphere;
     }
 
@@ -243,11 +255,19 @@ function Particles() {
             let velocity = [Math.random()*0.1, Math.random()*0.1, Math.random()*0.1];
             const mass = Math.random();
             const restitution = Math.random(); // How bouncy the sphere is (between 0 and 1)
-            if (i < 4) {
-                this.addSphere(pos, radius, velocity, mass, restitution, "white", true);
+            let physicsActive = Math.random();
+            if (physicsActive > 0.5) {
+                physicsActive = true;
             }
             else {
-                this.addSphere(pos, radius, velocity, mass, restitution, "redambient");
+                physicsActive = false;
+            }
+            const isHidden = false;
+            if (i < 4) {
+                this.addSphere(pos, radius, velocity, mass, restitution, "white", true, isHidden, physicsActive);
+            }
+            else {
+                this.addSphere(pos, radius, velocity, mass, restitution, "redambient", false, isHidden, physicsActive);
             }
         }
     }
@@ -332,7 +352,7 @@ function Particles() {
         shape.body.setRestitution(restitution);
         // Finally, add the rigid body to the simulator
         this.dynamicsWorld.addRigidBody(shape.body);
-
+        shape.physicsActive = true;
         return shape;
     }
 
@@ -444,9 +464,11 @@ function Particles() {
         this.lastTime = thisTime;
         this.dynamicsWorld.stepSimulation(dt, 10);
         for (shape of this.scene.children) {
-            let trans = shape.ptransform;
-            shape.body.getMotionState().getWorldTransform(trans);
-            updateTransformation(shape);
+            if (shape.physicsActive) {
+                let trans = shape.ptransform;
+                shape.body.getMotionState().getWorldTransform(trans);
+                updateTransformation(shape);
+            }
         }
         if (!(this.glcanvas === null)) {
             // Make the camera in world coordinates 4 units in z in front of the cow
