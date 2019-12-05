@@ -469,6 +469,11 @@ function Particles() {
                 shape.body.getMotionState().getWorldTransform(trans);
                 updateTransformation(shape);
             }
+            else {
+                let mrot = mat4.create();
+                mat4.fromYRotation(mrot, dt*6);
+                mat4.multiply(shape.transform, shape.transform, mrot);
+            }
         }
         if (!(this.glcanvas === null)) {
             // Make the camera in world coordinates 4 units in z in front of the cow
