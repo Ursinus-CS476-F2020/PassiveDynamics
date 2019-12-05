@@ -214,6 +214,7 @@ function Particles() {
             ]
         }
         this.scene.children.push(sphere);
+        sphere.isLight = isLight;
         if (isLight) {
             // If it is a light, need to also add it to the list of lights
             sphere.color = this.scene.materials[material].kd;
@@ -470,9 +471,18 @@ function Particles() {
                 updateTransformation(shape);
             }
             else {
-                let mrot = mat4.create();
-                mat4.fromYRotation(mrot, dt*6);
-                mat4.multiply(shape.transform, shape.transform, mrot);
+                if (shape.isLight) {
+                    let v = vec3.create();
+                    vec3.copy(v, shape.pos);
+                    v[0] += 5*Math.cos(6*this.time);
+                    v[2] += 5*Math.sin(6*this.time);
+                    mat4.translate(shape.transform, mat4.create(), v);
+                }
+                else {
+                    let mrot = mat4.create();
+                    mat4.fromYRotation(mrot, dt*6);
+                    mat4.multiply(shape.transform, shape.transform, mrot);
+                }
             }
         }
         if (!(this.glcanvas === null)) {
