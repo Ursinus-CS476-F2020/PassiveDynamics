@@ -79,8 +79,8 @@ class Particles {
                     "material":"redambient"}
                 ]
             }
-            this.scene.children.push(sphere);
-            this.spheres.push(sphere);
+            this.scene.children.push(sphere); // Adds to scene tree
+            this.spheres.push(sphere); // Another array to store the spheres
         }
     }
 
@@ -95,10 +95,16 @@ class Particles {
         let spheres = this.spheres;
         for (let i = 0; i < spheres.length; i++) {
             for (let k = 0; k < 3; k++) {
+                // Updating physics
                 spheres[i].pos[k] += dt*spheres[i].velocity[k];
+                // Updating the scene
                 spheres[i].transform[12+k] = spheres[i].pos[k];
             }
             // TODO: Add acceleration and collision effects
+            spheres[i].velocity[1] += -9.81*dt;
+            if (spheres[i].pos[1] - spheres[i].radius < 0) {
+                spheres[i].velocity[1] = 0.9*Math.abs(spheres[i].velocity[1]);
+            }
         }
     }
 }

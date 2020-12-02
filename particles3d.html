@@ -54,21 +54,24 @@
 
 
 <script>
+    // Step 1: Create rendering engine
     let glcanvas = document.getElementById("GLCanvas1");
     glcanvas.addEventListener("contextmenu", function(e){ e.stopPropagation(); e.preventDefault(); return false; }); //Need this to disable the menu that pops up on right clicking
     let sceneCanvas = new SceneCanvas(glcanvas, "ggslac/shaders/", "ggslac/meshes/");
     sceneCanvas.repaintOnInteract = false;
 
 
-    // Load the sample scene as a default
+    // Step 2: Initialize physics engine
     particles = new Particles();
     particles.randomlyInitSpheres(20);
+
+    // Step 3: Connect the two engines
     sceneCanvas.setupScene(particles.scene, glcanvas.clientWidth, glcanvas.clientHeight);
     sceneCanvas.drawEdges = false;
     sceneCanvas.updateMeshDrawings();
 
     function repaint() {
-        particles.animate(); // Apply physics
+        particles.animate(); // Apply physics (steps 1 and 2)
         sceneCanvas.repaint(); // Update rendering
         requestAnimationFrame(repaint); // Repeat animation
     }
